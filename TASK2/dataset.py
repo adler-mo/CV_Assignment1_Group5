@@ -33,7 +33,34 @@ def get_panorama_data(path: str) -> Tuple[List[np.ndarray], List[cv2.KeyPoint], 
     """
     
     # student_code start
-    raise NotImplementedError("TO DO in dataset.py")
+def get_panorama_data(path: str):
+    """
+    Load all images from given directory, sort them left-to-right,
+    convert to grayscale, compute SIFT keypoints + descriptors,
+    and return images, keypoints, and descriptors.
+    """
+
+    # get sorted list of image files
+    files = sorted(glob.glob(path + "/*.jpg"))
+
+    img_data = []
+    all_keypoints = []
+    all_descriptors = []
+
+    # initialize SIFT detector
+    sift = cv2.SIFT_create()
+
+    for fname in files:
+        img_bgr = cv2.imread(fname)
+        img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+        img_gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
+
+        # detect and compute SIFT keypoints and descriptors
+        keypoints, descriptors = sift.detectAndCompute(img_gray, None)
+
+        img_data.append(img_rgb)
+        all_keypoints.append(keypoints)
+        all_descriptors.append(descriptors)
     # student_code end
 
     return img_data, all_keypoints, all_descriptors

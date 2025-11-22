@@ -61,7 +61,57 @@ def get_transform(kp1: List[cv2.KeyPoint], kp2: List[cv2.KeyPoint], matches: Lis
     """
 
     # student_code start
-    raise NotImplementedError("TO DO in transforms.py")
+    N = 1000         # number of RANSAC iterations
+    T = 5.0          # inlier distance threshold (pixels)
+
+    trans = None
+    inliers = []
+
+    # Precompute all coordinates (for speed)
+    pts1_all = np.array([kp1[m.queryIdx].pt for m in matches], dtype=np.float32)  # (M,2)
+    pts2_all = np.array([kp2[m.trainIdx].pt for m in matches], dtype=np.float32)  # (M,2)
+
+    M = len(matches)
+    if M < 4:
+        # Not enough matches – return identity or raise
+        ...
+
+    for _ in range(N):
+        # 1. Randomly sample 4 distinct indices
+        idxs = random.sample(range(M), 4)
+
+        p1 = pts1_all[idxs]  # (4,2)
+        p2 = pts2_all[idxs]  # (4,2)
+
+        # 2. Estimate candidate homography
+        H_candidate = get_geometric_transform(p1, p2)
+        if H_candidate is None:
+            continue
+
+        # 3. Transform ALL p1 points
+        pts1_h = pts1_all.reshape(-1, 1, 2)
+        pts1_trans = cv2.perspectiveTransform(pts1_h, H_candidate).reshape(-1, 2)
+
+        # 4. Compute distances to pts2_all
+        diff = pts2_all - pts1_trans
+        dists = np.linalg.norm(diff, axis=1)
+
+        # 5. Inliers = where distance < T
+        inlier_idx = np.where(dists < T)[0]
+
+        if len(inlier_idx) > len(inliers):
+            inliers = inlier_idx
+            trans = H_candidate
+
+    # After RANSAC: re-estimate H with all inliers
+    if trans is None or len(inliers) < 4:
+        # fallback
+        ...
+    else:
+        p1_in = pts1_all[inliers]
+        p2_in = pts2_all[inliers]
+        trans = get_geometric_transform(p1_in, p2_in)
+
     # student_code end
 
     return trans, inliers
