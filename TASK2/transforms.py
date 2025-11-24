@@ -130,7 +130,21 @@ def to_center(desc: List[np.ndarray], kp: List[cv2.KeyPoint]) -> List[np.ndarray
     """
 
     # student_code start
-    raise NotImplementedError("TO DO in transforms.py")
+    num_images = len(desc)
+    H_center = [np.zeros((3,3), dtype=np.float32) for _ in range(num_images)]
+
+    H_cons = [np.zeros((3,3), dtype=np.float32) for _ in range(num_images)]
+    for i in range(0, num_images - 1):
+        matches = mapping.calculate_matches(desc[i], desc[i+1])
+        H, _ = get_transform(kp[i], kp[i+1], matches)
+        H_cons[i] = H
+
+    H_center[num_images // 2] = np.eye(3, 3, dtype=np.float32)
+    for i in range(num_images // 2 - 1, -1, -1):
+        H_center[i] = H_cons[i] @ H_center[i + 1]
+
+    for i in range(num_images // 2 + 1, num_images, 1):
+        H_center[i] =  H_center[i - 1] @ inv(H_cons[i-1])
     # student_code end
 
     return H_center
@@ -162,7 +176,36 @@ def get_panorama_extents(images: List[np.ndarray], H: List[np.ndarray]) -> Tuple
     """
 
     # student_code start
-    raise NotImplementedError("TO DO in transforms.py")
+    min_x = float('inf')
+    min_y = float('inf')
+    max_x = float('-inf')
+    max_y = float('-inf')
+
+    for i in range(len(images)):
+        img = images[i]
+        h = img.shape[0]
+        w = img.shape[1]
+
+        corners = np.array([
+            [0, 0], [w, 0], [w, h], [0, h]
+        ], dtype=np.float32)
+        corners = corners.reshape((-1, 1, 2))
+
+        corners = cv2.perspectiveTransform(corners, H[i])
+        corners = corners.reshape((-1, 2))
+
+        min_x = min(min_x, corners[:, 0].min())
+        min_y = min(min_y, corners[:, 1].min())
+        max_x = max(max_x, corners[:, 0].max())
+        max_y = max(max_y, corners[:, 1].max())
+
+    T = np.eye(3, 3, dtype=np.float32)
+    T[0][2] = abs(min_x)
+    T[1][2] = abs(min_y)
+
+    width = int(np.ceil(max_x - min_x))
+    height = int(np.ceil(max_y - min_y))
+
     # student_code end
 
     return T, width, height

@@ -34,7 +34,16 @@ def get_simple(images: List[np.ndarray], width: int, height: int, H: List[np.nda
     """
     
     # student_code start
-    raise NotImplementedError("TO DO in panorama.py")
+    result = np.zeros((height, width, 3), dtype=np.uint8)
+        
+    for i in range(len(images)):
+        img = images[i]
+        M = T @ H[i]
+        
+        img = cv2.warpPerspective(img, M, (width, height))
+        
+        result = cv2.addWeighted(result, 1, img, 1, 0)
+        
     # student_code end
         
     return result
@@ -66,7 +75,39 @@ def get_blended(images: List[np.ndarray], width: int, height: int, H: List[np.nd
     """
     
     # student_code start
-    raise NotImplementedError("TO DO in panorama.py")
+
+    pan = np.zeros((height, width, 3), dtype=np.float32)
+    weights_total = np.zeros((height, width), dtype=np.float32)
+
+    for i in range(len(images)):
+        img = images[i]
+        h = img.shape[0]
+        w = img.shape[1]
+
+        mask = np.ones((h, w), dtype=np.float32)
+        mask[0, :] = 0
+        mask[h-1, :] = 0
+        mask[:, 0] = 0
+        mask[:, w-1] = 0
+
+        weights = ndimage.distance_transform_edt(mask)
+        if weights.max() > 0:
+            weights = weights / weights.max()
+
+        M = T @ H[i]
+        img = cv2.warpPerspective(img, M, (width, height)).astype(np.float32)
+        weights = cv2.warpPerspective(weights, M, (width, height))
+
+        weights_colors = np.dstack([weights] * 3)
+
+        weighted_img = img * weights_colors
+        pan += weighted_img
+        weights_total += weights
+
+    weights_total_non_zero = weights_total # [weights_total==0] = 1.0
+    result = pan / np.dstack([weights_total_non_zero] * 3)
+    result = np.clip(result, 0, 255).astype(np.uint8)
+
     # student_code end
 
     return result
